@@ -11,16 +11,16 @@ app = FastAPI()
 def mensaje():
     return {"¡Bienvenid@! Esta es una API para realizar consultas sobre juegos de STEAM."}
 
-ruta_games = 'games_cleaned.parquet'
-ruta_reviews = 'reviews_cleaned.parquet'
-ruta_items = 'items_cleaned.parquet'
+ruta_games = 'games_sample.parquet'
+ruta_reviews = 'reviews_sample.parquet'
+ruta_items = 'items_sample.parquet'
 
 def load_data():
-    if not hasattr(load_data, "games_cleaned"):
-        load_data.games_cleaned = pd.read_parquet(ruta_games)
-        load_data.reviews_cleaned = pd.read_parquet(ruta_reviews)
-        load_data.items_cleaned = pd.read_parquet(ruta_items)
-    return load_data.games_cleaned, load_data.reviews_cleaned, load_data.items_cleaned
+    if not hasattr(load_data, "games_sample"):
+        load_data.games_sample = pd.read_parquet(ruta_games)
+        load_data.reviews_sample = pd.read_parquet(ruta_reviews)
+        load_data.items_sample = pd.read_parquet(ruta_items)
+    return load_data.games_sample, load_data.reviews_sample, load_data.items_sample
 
 # Función para calcular la cantidad de items y el porcentaje de contenido gratuito según desarrollador
 def developer_items_free(df):
@@ -138,31 +138,31 @@ def year_penalty(year1, year2):
     return 1 - (abs(year1 - year2) / 10)  # Penalizamos si los años son lejanos
 
 # Función para obtener recomendaciones
-def get_recommendations(item_id, games_cleaned, num_recommendations=5):
+def get_recommendations(item_id, games_sample, num_recommendations=5):
 
     # Procesar las etiquetas de los juegos
-    games_cleaned['tags_combined'] = games_cleaned['tags'].fillna('').apply(lambda x: ' '.join(x))
+    games_sample['tags_combined'] = games_sample['tags'].fillna('').apply(lambda x: ' '.join(x))
 
     # Crear un vectorizador TF-IDF basado en las etiquetas
     tfidf = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(games_cleaned['tags_combined'])
+    tfidf_matrix = tfidf.fit_transform(games_sample['tags_combined'])
 
     # Similitud del coseno basada en etiquetas
     cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
 
     try:
         # Obtener el índice del juego
-        idx = games_cleaned[games_cleaned['item_id'] == item_id].index[0]
+        idx = games_sample[games_sample['item_id'] == item_id].index[0]
         
         # Obtener el año del juego
-        target_year = games_cleaned.loc[idx, 'year']
+        target_year = games_sample.loc[idx, 'year']
 
         # Obtener las similitudes basadas en géneros
         sim_scores = list(enumerate(cosine_sim[idx]))
 
         # Ajustar las similitudes en base a la cercanía de los años
         for i, (index, score) in enumerate(sim_scores):
-            game_year = games_cleaned.loc[index, 'year']
+            game_year = games_sample.loc[index, 'year']
             sim_scores[i] = (index, score * year_penalty(target_year, game_year))
 
         # Ordenar por similitud y obtener los 5 juegos más similares
@@ -172,7 +172,7 @@ def get_recommendations(item_id, games_cleaned, num_recommendations=5):
         game_indices = [i[0] for i in sim_scores]
         
         # Devolver los juegos recomendados (IDs y nombres)
-        return games_cleaned[['item_id', 'item_name']].iloc[game_indices]
+        return games_sample[['item_id', 'item_name']].iloc[game_indices]
 
     except IndexError:
         return "Juego no encontrado"
@@ -182,10 +182,10 @@ def get_recommendations(item_id, games_cleaned, num_recommendations=5):
 @app.get("/desarrollador/{desarrollador}")
 async def developer( desarrollador : str ):
 
-    games_cleaned, _, _ = load_data()
+    games_sample, _, _ = load_data()
 
     # Filtrar por el desarrollador proporcionado
-    games_filtrado = games_cleaned[games_cleaned['developer'] == desarrollador]
+    games_filtrado = games_sample[games_sample['developer'] == desarrollador]
     
     result = developer_items_free(games_filtrado)
     
@@ -198,14 +198,14 @@ async def developer( desarrollador : str ):
 @app.get("/user_id/{user_id}")
 async def userdata( user_id : str ):
 
-    games_cleaned, reviews_cleaned, items_cleaned = load_data()
+    games_sample, reviews_sample, items_sample = load_data()
 
     # Filtrar los juegos comprados por el usuario
-    user_items_data = items_cleaned[items_cleaned['user_id'] == user_id]
+    user_items_data = items_sample[items_sample['user_id'] == user_id]
     # Filtrar las recomendaciones hechas por el usuario
-    user_reviews_data = reviews_cleaned[reviews_cleaned['user_id'] == user_id]
+    user_reviews_data = reviews_sample[reviews_sample['user_id'] == user_id]
 
-    result = user_statistics(user_id, user_items_data, user_reviews_data, games_cleaned)
+    result = user_statistics(user_id, user_items_data, user_reviews_data, games_sample)
 
     del user_items_data, user_reviews_data
     gc.collect()
@@ -216,12 +216,12 @@ async def userdata( user_id : str ):
 @app.get("/genero/{genero}")
 async def userforgenre( genero : str ):
 
-    games_cleaned, items_cleaned, _ = load_data()
+    games_sample, items_sample, _ = load_data()
 
     # Filtrar los juegos que contengan el genero dado
-    df_juegos = games_cleaned[games_cleaned['genres'].apply(lambda x: isinstance(x, list) and genero in x)]
+    df_juegos = games_sample[games_sample['genres'].apply(lambda x: isinstance(x, list) and genero in x)]
 
-    result = genre(genero, items_cleaned, df_juegos)
+    result = genre(genero, items_sample, df_juegos)
 
     del df_juegos
     gc.collect()
@@ -232,12 +232,12 @@ async def userforgenre( genero : str ):
 @app.get("/anio/{anio}")
 async def best_developer_year( anio : int ):
 
-    games_cleaned, _, reviews_cleaned = load_data()
+    games_sample, _, reviews_sample = load_data()
 
     # Filtrar los juegos lanzados en el año dado
-    juegos_del_año = games_cleaned[games_cleaned['year'] == anio]
+    juegos_del_año = games_sample[games_sample['year'] == anio]
 
-    result = best_developer(reviews_cleaned, juegos_del_año)
+    result = best_developer(reviews_sample, juegos_del_año)
 
     del juegos_del_año
     gc.collect()
@@ -248,12 +248,12 @@ async def best_developer_year( anio : int ):
 @app.get("/desarrolladora/{desarrolladora}")
 async def developer_reviews_analysis( desarrolladora : str ):
 
-    games_cleaned, _, reviews_cleaned = load_data()
+    games_sample, _, reviews_sample = load_data()
 
     # Filtrar los juegos que fueron desarrollados por la desarrolladora dada
-    juegos_de_desarrolladora = games_cleaned[games_cleaned['developer'] == desarrolladora]
+    juegos_de_desarrolladora = games_sample[games_sample['developer'] == desarrolladora]
 
-    result = developer_reviews(desarrolladora, reviews_cleaned, juegos_de_desarrolladora)
+    result = developer_reviews(desarrolladora, reviews_sample, juegos_de_desarrolladora)
     
     del juegos_de_desarrolladora
     gc.collect()
@@ -264,10 +264,10 @@ async def developer_reviews_analysis( desarrolladora : str ):
 @app.get("/recomendacion_juego/{item_id}")
 async def recomendacion_juego(item_id: int):
 
-    games_cleaned, _, _ = load_data()
+    games_sample, _, _ = load_data()
 
     try:
-        recomendaciones = get_recommendations(item_id, games_cleaned)
+        recomendaciones = get_recommendations(item_id, games_sample)
         if isinstance(recomendaciones, pd.DataFrame):
             return {"juegos_recomendados": recomendaciones.to_dict(orient='records')}
         else:
