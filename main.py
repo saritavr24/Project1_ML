@@ -70,7 +70,7 @@ def user_statistics(user, df, df2, df3):
 def genre(gen, df, df2):
 
     # Unir el DataFrame de juegos con el de items
-    df_merged = pd.merge(df, df2, on='item_name', how='inner')
+    df_merged = pd.merge(df, df2, on=['item_name', 'item_id'], how='inner')
 
     # Agrupar por usuario y sumar las horas jugadas
     df_grouped = df_merged.groupby('user_id').agg(total_playtime=('playtime_forever', 'sum'))
