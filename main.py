@@ -219,8 +219,8 @@ async def userforgenre( genero : str ):
     games_sample, items_sample, _ = load_data()
 
     # Filtrar los juegos que contengan el genero dado
-    df_juegos = games_sample[games_sample['genres'].apply(lambda x: isinstance(x, list) and genero in x)]
-
+    df_juegos = games_sample[games_sample['genres'].apply(lambda x: isinstance(x, list) and genero in x if pd.notnull(x) else False)]
+    
     result = genre(genero, items_sample, df_juegos)
 
     del df_juegos
