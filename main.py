@@ -214,12 +214,12 @@ async def userdata( user_id : str ):
 
 # Ruta para calcular el usuario que acumula más horas jugadas para el género dado y una lista de la acumulación de horas jugadas por año de lanzamiento.
 @app.get("/genero/{genero}")
-async def userforgenre( genero : str ):
+async def userforgenre(genero: str):
 
     games_sample, items_sample, _ = load_data()
 
     # Filtrar los juegos que contengan el genero dado
-    df_juegos = games_sample[games_sample['genres'].apply(lambda x: isinstance(x, list) and any(genero == g for g in x) if pd.notnull(x) else False)]
+    df_juegos = games_sample[games_sample['genres'].apply(lambda x: isinstance(x, list) and pd.notnull(x) and any(genero == g for g in x))]
     
     result = genre(genero, items_sample, df_juegos)
 
